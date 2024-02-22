@@ -21,86 +21,53 @@ import {
     O_vec2
 } from "https://deno.land/x/vector@0.8/mod.js"
 
-let f_a_n_hmsms_from_n_ms = function(n_ms){
-    let n_ms_mod = n_ms % 1000;
-    let n_seconds = n_ms / 1000
-    let n_seconds_mod = n_seconds % 60;
-    let n_minutes = n_seconds / 60
-    let n_minutes_mod = n_minutes % 60
-    let n_hours = n_minutes / 60
-    let n_hours_mod = n_hours 
-    return [
-        n_hours, 
-        n_minutes_mod, 
-        n_seconds_mod, 
-        n_ms_mod
-    ]
-}
-let f_s_time_from_n_ms = function(n_ms){
-    let [ 
-        n_hours,
-        n_minutes_mod,
-        n_seconds_mod,
-        n_ms_mod
-    ] = f_a_n_hmsms_from_n_ms(n_ms);
-    return [
-        (parseInt(n_hours) > 0) ? parseInt(n_hours).toString().padStart(2, '0') : false,
-        (parseInt(n_minutes_mod) > 0) ? parseInt(n_minutes_mod).toString().padStart(2, '0') : false,
-        (parseInt(n_seconds_mod) > 0) ? parseInt(n_seconds_mod).toString().padStart(2, '0') : false,
-        (parseInt(n_ms_mod) > 0) ? parseInt(n_ms_mod).toString().padStart(2, '0') : false,
-    ].filter(v=>v).join(':')
-}
-let f_o_trn__relative_to_o_html = function(
-    o_trn_mouse, 
-    o_el
-){
-    const o_brect  = o_el.getBoundingClientRect();
-    
-    return o_trn_mouse.sub(o_brect.left, o_brect.top); 
-    
-}
-let f_o_trn__relative_to_o_html__nor = function(
-    o_trn_mouse, 
-    o_el
-){
-    const o_brect  = o_el.getBoundingClientRect();
-    
-    let o_trn = new O_vec2(o_brect.left, o_brect.top);
-    let o_scl = new O_vec2(o_brect.width, o_brect.height);
-    return o_trn_mouse.sub(o_trn).div(o_scl); 
-    
-}
 
-o_variables.n_rem_font_size_base = 1. // adjust font size, other variables can also be adapted before adding the css to the dom
-o_variables.n_rem_padding_interactive_elements = 0.5; // adjust padding for interactive elements 
+// o_variables.n_rem_font_size_base = 1. // adjust font size, other variables can also be adapted before adding the css to the dom
+// o_variables.n_rem_padding_interactive_elements = 0.5; // adjust padding for interactive elements 
 f_add_css(
     `
-    body{
-
-    }
-    .abs_centered{
-        position: absolute;
-        left: 50%;
-        transform: translate(-50%, 0%);
-    }
     .app{
-        width:80%;
+        max-height: 100vh;
+        display:flex;
+        align-items:center;
+        justify-content:center;
         margin: 0 auto;
+        flex-direction:column;
     }
-    .loop_position_inputs input{
-        width: 50px;
+    .a_o_key{
+        width:100%;
+        display:flex;
+        flex-direction:row;
+        flex-wrap:wrap;
     }
-    .timeline {
-        background: rgba(0,0,0,0.2);
+    textarea{
+        flex: 1 1 auto;
+        width:100%;
+        box-sizing: border-box;
     }
-    .cursor{
+    .o_key{
+        aspect-ratio:1/1;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.3vw;   
+    }
+    .b_down{
+        background:grey;
+    }
+    .o_key > div{
+        position:relative;
+        border-radius: 3px;
+        border: 1px solid white;
+        box-sizing: border-box;
+        width: 100%;
         height: 100%;
-        left: 50%;
-        position: absolute;
-        width: 5px;
-        transform: translate(-50%, 0%);
-        border-right: 2px dotted black;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
+
     ${
         f_s_css_from_o_variables(
             o_variables
@@ -116,512 +83,619 @@ import {
 }
 from 'https://deno.land/x/f_o_html_from_o_js@2.7/mod.js'
 
-
-let f_s_video_id__from_s_url = function(s_url){
-    // Regular expression to match various YouTube URL formats
-    const o_regex = /^.*(youtu\.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#\&\?]*).*/;
-    const a_v_match = s_url.match(o_regex);
-  
-    // Check if the URL matches the YouTube URL pattern
-    if (a_v_match && a_v_match[2].length === 11) {
-      // Return the YouTube video ID
-      return a_v_match[2];
-    } else {
-      // If no match is found or the video ID length is not 11 characters, return an error or null
-      return null;
-    }
-  }
-
-let n_id_raf = 0;
-let n_ms_max = 1000/24;
-let n_ms_wpn = 0;
-let n_ms_wpn_last = 0;
-let f_raf = function(){
-    n_id_raf = window.requestAnimationFrame(f_raf);
-    //
-    n_ms_wpn = window.performance.now();
-    if((n_ms_wpn - n_ms_wpn_last) > n_ms_max){
-        o_state?.o_js__playhead?._f_update?.()
-        n_ms_wpn_last = n_ms_wpn
-        if(o_state.b_yt_video_playing){
-            o_state.n_ms__tmp = window?.o_state?.o_youtube_iframe_api_player?.getCurrentTime?.() * 1000
-            // the sliders could get switched up by the user
-            let n_ms_loop_max = Math.max(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
-            let n_ms_loop_min = Math.min(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
-            if(
-                window?.o_state?.o_youtube_iframe_api_player?.getCurrentTime?.() * 1000 > n_ms_loop_max
-            ){
-                window.o_state.o_youtube_iframe_api_player.seekTo(
-                    n_ms_loop_min/1000
-                );
-            }
-        }
-        
+class O_event{
+    constructor(
+        s_char_key, 
+        b_down, 
+        n_ms_wpn
+    ){
+        this.s_char_key = s_char_key
+        this.b_down = b_down
+        this.n_ms_wpn = n_ms_wpn
     }
 }
-n_id_raf = window.requestAnimationFrame(f_raf);
+class O_key{
+    constructor(
+        s_text,
+        b_down, 
+        s_char_key
+    ){
+        this.s_text = s_text
+        this.b_down = b_down 
+        this.s_char_key = s_char_key
+    }
+}
+class O_key_action{
+    constructor(
+        a_s_char_key,
+        b_tap, 
+        b_hold,
+        n_ms_for_activation_hold,
+        n_ms_delta_to_count_as_tap_combo,
+        s_name_function_action, 
+        a_v_arg_function_action
+    ){
+        this.a_s_char_key = a_s_char_key
+        this.b_tap = b_tap 
+        this.b_hold = b_hold
+        this.n_ms_for_activation_hold = n_ms_for_activation_hold
+        this.n_ms_delta_to_count_as_tap_combo = n_ms_delta_to_count_as_tap_combo
+        this.s_name_function_action = s_name_function_action
+        this.a_v_arg_function_action = a_v_arg_function_action
+    }
+}
+let a_a_b_down__layout = [
+    [
+        1,0,0,0,
+        0,0,0,0
+    ]
+]
+let o_scl = new O_vec2(4,2)
+let a_s_text = ['a','r','t','s','e','y','i','o']
+let a_s_char_key = ['u', 'i', 'o', 'p', 'j', 'k', 'l', ';'];
+let f_o_key_action_emit_from_params = function(a_n, s_char_key_to_emit){
 
+    return new O_key_action(
+        f_a_s_char_key__from_a_n(
+            a_n
+        ),
+        true, 
+        false,
+        n_ms_for_activation_hold,
+        n_ms_delta_to_count_as_tap_combo,
+        'f_emit_keydown', 
+        [s_char_key_to_emit]
+    )
+    f_a_s_char_key__from_a_n
+}
+let f_a_s_char_key__from_a_n = function(a_n){
+    return a_n.map(
+        (n, n_idx)=>{
+            if(n == 0){
+                return false
+            }
+            return a_s_char_key[n_idx]
+        }
+    ).filter(v=>v)
+}
+let o_s_name_function_f_function = {
+    f_emit_keydown : function(s_char_key){
+        console.log(s_char_key)
 
+        // var event = new KeyboardEvent('keydown', {
+        //     key: s_char_key,
+        //     // keyCode: keyCode,
+        //     bubbles: true,
+        //     cancelable: true
+        // });
+        // document.dispatchEvent(event);
+        // custom events will have o.isTrusted == false, and will not reflect in inputs such as textareas and inputs...
+        // therefore we have to render by our own
+        
+        console.log(s_char_key)
+        let n_length_max = 100;
+
+        if(s_char_key == '<backSpace>'){
+            o_state.s_text_input = o_state.s_text_input.slice(0,-1)
+            o_state?.o_js__text._f_update()
+            return
+        }
+        o_state.s_text_input = [
+            ...Array.from(
+                o_state.s_text_input
+            ),
+            s_char_key
+        ].slice(-n_length_max).join('')
+        o_state?.o_js__text._f_update()
+    }
+}
+let n_ms_for_activation_hold = 300;
+let n_ms_delta_to_count_as_tap_combo = 60;
 let o_state = {
-    s_url: '', 
-    s_video_id: null, 
-    n_ms__tmp: 0,
-    n_ms__start_loop: 0,
-    n_ms__end_loop: 10000, 
-    b_pointer_down_start: false, 
-    b_pointer_down_end: false, 
-    b_pointer_over_start_end: false, 
-    b_pointer_over_start_end_last: false, 
-    o_state_for__tooltip: {}
+    s_text_input: '',
+    n_ms_timeout_for_check_actions: 50, 
+    n_id_timeout: 0,
+    a_o_key_action: [
+        ...a_s_text.map((s,n_idx)=>{
+            return new O_key_action(
+                a_s_char_key[n_idx],
+                true,
+                false,
+                n_ms_for_activation_hold,
+                n_ms_delta_to_count_as_tap_combo,
+                'f_emit_keydown', 
+                [a_s_text[n_idx]]
+            )
+        }),
+        ...[
+            [
+                [
+                    0,0,0,0,
+                    1,0,0,1
+                ],
+                'b'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    1,1,0,0
+                ],
+                'c'
+            ],
+            [
+                [
+                    1,1,1,0,
+                    0,0,0,0
+                ],
+                'd'
+            ],
+            [
+                [
+                    1,1,0,0,
+                    0,0,0,0
+                ],
+                'f'
+            ],
+            [
+                [
+                    0,1,1,0,
+                    0,0,0,0
+                ],
+                'g'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    1,0,1,0
+                ],
+                'h'
+            ],
+            [
+                [
+                    0,0,1,1,
+                    0,0,0,0
+                ],
+                'j'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    0,1,0,1
+                ],
+                'k'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    1,1,1,0
+                ],
+                'l'
+            ],
+            [
+                [
+                    1,0,0,0,
+                    1,0,0,0
+                ],
+                '\r\n'
+            ],
+            [
+                [
+                    1,0,0,0,
+                    0,1,1,0
+                ],
+                "'"
+            ],
+            [
+                [
+                    1,0,0,0,
+                    0,1,0,0
+                ],
+                '.'
+            ],
+            [
+                [
+                    1,0,0,0,
+                    0,0,1,0
+                ],
+                ','
+            ],
+            [
+                [
+                    1,0,0,0,
+                    0,0,0,1
+                ],
+                '/'
+            ],
+            [
+                [
+                    0,0,1,0,
+                    0,0,1,0
+                ],
+                '!'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    1,1,1,1
+                ],
+                ' '
+            ],
+            [
+                [
+                    0,1,0,0,
+                    1,0,0,0
+                ],
+                '<backSpace>'
+            ],
+            [
+                [
+                    0,1,0,0,
+                    0,0,1,0
+                ],
+                '<delete>'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    0,1,1,1
+                ],
+                'm'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    0,0,1,1
+                ],
+                'n'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    1,0,1,1
+                ],
+                'p'
+            ],
+            [
+                [
+                    1,0,1,1,
+                    0,0,0,0
+                ],
+                'q'
+            ],
+            [
+                [
+                    0,0,0,0,
+                    0,1,1,0
+                ],
+                'u'
+            ],
+            [
+                [
+                    0,1,0,1,
+                    0,0,0,0
+                ],
+                'v'
+            ],
+            [
+                [
+                    1,0,0,1,
+                    0,0,0,0
+                ],
+                'w'
+            ],
+            [
+                [
+                    0,1,1,1,
+                    0,0,0,0
+                ],
+                'x'
+            ],
+            [
+                [
+                    1,1,1,1,
+                    0,0,0,0
+                ],
+                'z'
+            ],
+            [
+                [
+                    1,1,0,0,
+                    0,0,0,1
+                ],
+                '<esc>'
+            ],
+            [
+                [
+                    1,1,1,0,
+                    0,0,0,1
+                ],
+                '\t'
+            ],
+            [
+                [
+                    0,0,0,1,
+                    1,0,0,0
+                ],
+                '<ctrl>'
+            ],
+            [
+                [
+                    0,0,0,1,
+                    0,1,0,0
+                ],
+                '<gui>'
+            ],
+            [
+                [
+                    0,0,0,1,
+                    0,0,1,0
+                ],
+                '<alt>'
+            ],
+            [
+                [
+                    0,1,1,1,
+                    1,0,0,0
+                ],
+                '<shift>'
+            ],
+            [
+                [
+                    0,1,0,0,
+                    0,1,0,0
+                ],
+                '<shift_lock>'
+            ],
+            [
+                [
+                    1,0,0,0,
+                    0,1,1,1
+                ],
+                '<caps_lock>'
+            ],
+            [
+                [
+                    0,1,1,0,
+                    0,1,1,0
+                ],
+                '<clear_bluetooth>'
+            ],
+        ].map(a_v=>{return f_o_key_action_emit_from_params(...a_v)})
+    ],
+    o_scl: o_scl,
+    a_s_text: a_s_text,
+    n_ms_delta_to_count_as_single_key: 60,
+    a_o_event: [], 
+    a_o_event__per_key: [],
+    a_o_key: new Array(o_scl.compsmul()).fill(0).map(
+        (n, n_idx)=>{
+            return new O_key(
+                a_s_text[n_idx],
+                false,
+                a_s_char_key[n_idx]
+            )
+        }
+    )
 }
 window.o_state = o_state
-
-let f_update_video_from_s_id = function(s_id){
-    o_state.s_video_id = s_id
-    window.o_state.o_youtube_iframe_api_player.loadVideoById(o_state.s_video_id)
-    // window.o_state.o_youtube_iframe_api_player.pauseVideo()
-    f_update_url_hash()
-
-
-}
-let f_update_url_hash = function(){
-    let n_ms_loop_max = Math.max(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
-    let n_ms_loop_min = Math.min(o_state.n_ms__start_loop,o_state.n_ms__end_loop)
-
-    let o = {
-        s_video_id: o_state.s_video_id, 
-        n_ms__start_loop:n_ms_loop_min,
-        n_ms__end_loop:n_ms_loop_max
-    }
-    window.location.href = `${window.location.origin}${window.location.pathname}#${
-        Object.keys(o).map(s=>{
-            return `${s}=${o[s]}` 
-        }).join('&')
-    }`
-}
-window.f_try_loading_from_url = function(){
-//   http://localhost:8080/#v=M7lc1UVf-VE&n_ms__start_loop=364671.5437374866&n_ms__end_loop=508466.173972531
-    let s = window.location.href.split('#').slice(1).join('#')
-    Object.assign(
-        o_state, 
-        ...s.split('&').map(s2=>{
-            let a_s = s2.split('=')
-            let s_prop = a_s[0];
-            let s_val = a_s[1];
-            return {
-                [s_prop]: (s_prop.indexOf('n') == 0) ? parseFloat(s_val) : s_val
-            }
-        })
-    )
-    // console.log(o_state)
-    f_update_video_from_s_id(o_state.s_video_id);
-    
-
-}
-
-window.onYouTubeIframeAPIReady = function() {
-    console.log(parseInt(window.innerWidth*0.8))
-  window.o_state.o_youtube_iframe_api_player = new YT.Player('player', {
-    height: '400',
-    width: '500',
-    // width: parseInt(window.innerWidth*0.8),
-    // videoId: 'M7lc1UVf-VE',
-    // videoId: '',
-    playerVars: {
-      'playsinline': 1
-    },
-    events: {
-      'onReady': onPlayerReady,
-      'onStateChange': onPlayerStateChange, 
-    //   'onSeek': ()=>{alert('asdf');console.log('seek')}, //not existing
-    //   'onSeeking': ()=>{alert('asdf');console.log('seeking')}
-    }
-  });
-
-}
-
-
-// // 4. The API will call this function when the video player is ready.
-function onPlayerReady(event) {
-    //   event.target.playVideo();
-    o_state.n_ms__end_loop = o_state.o_youtube_iframe_api_player.playerInfo.duration*1000.;
-    o_state.o_js__end_loop._f_update()
-    f_try_loading_from_url()
-    console.log('player ready')
-}
-
-// // 5. The API calls this function when the player's state changes.
-// //    The function indicates that when playing a video (state=1),
-// //    the player should play for six seconds and then stop.
-var done = false;
-function onPlayerStateChange(o_e) {
-
-    if(o_e.data == YT.PlayerState.BUFFERING){}
-    if(o_e.data == YT.PlayerState.CUED){}
-    if(o_e.data == YT.PlayerState.ENDED){}
-    if(o_e.data == YT.PlayerState.PAUSED){}
-    if(o_e.data == YT.PlayerState.PLAYING){}
-    if(o_e.data == YT.PlayerState.UNSTARTED){}
-    o_state.b_yt_video_playing = o_e.data == YT.PlayerState.PLAYING;
-    o_state.b_yt_video_paused = o_e.data == YT.PlayerState.PAUSED;
-
-    window.setTimeout(()=>{
-        ['start', 'end'].forEach(s=>{
-            o_state[`o_js__${s}_loop`]._f_render()
-            o_state[`o_js__inputs_${s}_loop`]._f_render();
-        })
-    },100)
-    console.log({
-        s: 'state change', 
-        o_e
-    })
-}
-
 document.body.appendChild(
     await f_o_html__and_make_renderable(
         {
             s_tag: 'div', 
             class: "app",
             a_o: [
-                
-                f_o_js__tooltip(o_state.o_state_for__tooltip),
                 {
-                    s_tag: "label", 
-                    innerText: "video url"
-                },
-                {
-                    s_tag: "input", 
-                    style: "width: 100%",
-                    oninput: (o_e)=>{
-                        o_state.s_url = o_e.target.value;
-                        let s_id = f_s_video_id__from_s_url(o_state.s_url);
-                        f_update_video_from_s_id(s_id);
-                        // o_state?.o_js__video?._f_render();
-                    }, 
-                    data_tooltip: 'enter the video url here'
-                },
-                {
-                    style: "width: 100%",
-                    id: "player"
-                },
-                {
-                    s_tag: 'script', 
-                    src: "https://www.youtube.com/iframe_api"
-                },
-                // Object.assign(
-                //     o_state, 
-                //     {
-                //         o_js__video: {
-                //             f_o_jsh:()=>{
-                //                 return {
-
-                //                     frameborder: 0,
-                //                     allowfullscreen: true, 
-                //                     allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share',
-                //                     s_tag: 'iframe', 
-                //                     src: `https://www.youtube.com/embed/${o_state.s_video_id}`
-                //                 }
-                //             }
-                //         }
-                //     }
-                // ).o_js__video,
-                {
-                    class: "timeline", 
-                    data_tooltip: [
-                        `click to change start or end`, 
-                    ].join('<br>'),
-                    style: 'width:100%;position:relative;height:2rem',
-                    a_o: [
-                        ...['start', 'end'].map(s=>{
-                            return Object.assign(
-                                o_state, 
-                                {
-                                    [`o_js__${s}_loop`]: {
-                                        f_o_jsh:()=>{
-                                            return {
-                                                data_tooltip: [
-                                                    `${s} of loop`, 
-                                                    `drag to change`, 
-                                                ].join('<br>'),
-                                                style: [
-                                                    'height: 100%',
-                                                    'width:3rem',
-                                                    'background:rgba(132,33,193,0.5)', 
-                                                    `left: ${(o_state[`n_ms__${s}_loop`] / 1000) / o_state?.o_youtube_iframe_api_player?.playerInfo?.duration
-                                                    *100}%`, 
-                                                    'position: absolute',
-                                                    `transform: translate(-50%, 0%)`
-                                                ].join(';'), 
-                                                class: [
-                                                    `playhead`, 
-                                                    s
-                                                ].join(' '),
-                                                onpointerdown: ()=>{
-                                                    o_state[`b_pointer_down_${s}`] = true
-                                                    console.log(o_state[`b_pointer_down_${s}`])
-                                                },
-                                                onpointerup: ()=>{
-                                                    o_state[`b_pointer_down_${s}`] = false
-                                                }, 
-                                                a_o:[
-                                                    {
-                                                        class: "cursor"
-                                                    },
-                                                    {
-                                                        class: "abs_centered",
-                                                        innerText: f_s_time_from_n_ms(o_state[`n_ms__${s}_loop`]) 
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    }
-                                }
-                            )[`o_js__${s}_loop`]
-                        }),
-                        Object.assign(
-                            o_state, 
-                            {
-                                o_js__playhead: {
-                                    f_o_jsh:()=>{
-                                        return {
-                                            style: [
-                                                'position: absolute',
-                                                'height: 100%',
-                                                'width:3px',
-                                                'background:red', 
-                                                `left: ${window?.o_state?.o_youtube_iframe_api_player?.getCurrentTime?.() / o_state?.o_youtube_iframe_api_player?.playerInfo?.duration
-*100}%`,
-                                                `transform: translate(-50%, 0%)`
-
-                                            ].join(';'), 
-                                            class: "playhead"
-                                        }
-                                    }
-                                }
-                            }
-                        ).o_js__playhead,
-                    ], 
-                    onpointerdown: (o_e)=>{
-
-                        if(o_state?.o_youtube_iframe_api_player?.playerInfo?.duration){
-
-                            let o_trn_nor = f_o_trn__relative_to_o_html__nor(
-                                new O_vec2(o_e.clientX,o_e.clientY),
-                                document.querySelector('.timeline')
-                            );
-                            let n_ms = o_trn_nor.n_x * o_state?.o_youtube_iframe_api_player?.playerInfo?.duration*1000.;
-                            console.log(n_ms);
-                            
-                            let o_closer = new Array("start", "end").map(s => {
-                                return {
-                                    s: s, 
-                                    n_ms_delta:Math.abs(o_state[`n_ms__${s}_loop`] - n_ms)
-                                }
-                            }).sort((o1,o2)=>{
-                                return o1.n_ms_delta - o2.n_ms_delta
-                            })[0];
-                            console.log(o_closer)
-                            
-                            o_state[`n_ms__${o_closer.s}_loop`] = n_ms;
-                            o_state[`o_js__${o_closer.s}_loop`]._f_render()
-                            o_state[`o_js__inputs_${o_closer.s}_loop`]._f_render();
-                        }
-
-                    }
-                },
-                {
-                    class: 'loop_position_inputs',
                     style: [
-                        `display: flex;`,
-                        // `align-items: center`,
-                        `flex-direction: row`,
-                        `justify-content: space-between`
+                        'display:flex',
+                        'flex-direction:row',
+                        'max-height: 100vh'
                     ].join(';'),
                     a_o: [
-                        ...['start', 'end'].map(s=>{
-                            return Object.assign(
-                                o_state, 
+                        {
+                            style: 'padding: 1rem',
+                            a_o: [
                                 {
-                                    [`o_js__inputs_${s}_loop`]: {
-                                        f_o_jsh:()=>{
-                                            let [ 
-                                                n_hours,
-                                                n_minutes_mod,
-                                                n_seconds_mod,
-                                                n_ms_mod
-                                            ] = f_a_n_hmsms_from_n_ms(o_state[`n_ms__${s}_loop`]);
-                                            n_hours = parseInt(n_hours)
-                                            n_minutes_mod = parseInt(n_minutes_mod)
-                                            n_seconds_mod = parseInt(n_seconds_mod)
-                                            n_ms_mod = parseInt(n_ms_mod)
-                                            return {
-                                                a_o: [
-                                                    {
-                                                        innerText: "Hours Minutes Seconds Milliseconds H:M:S:MS"
-                                                    },
-                                                    {
-                                                        style: [
-                                                            `display: flex;`,
-                                                            `align-items: center;`,
-                                                        ].join(';'),
-                                                        a_o: [
-                                                            {
-                                                                s_tag: 'input', 
-                                                                type: 'number',
-                                                                value: (n_hours), 
-                                                                oninput: (o_e)=>{
-                                                                    n_hours = parseInt(o_e.target.value);
-                                                                    o_state[`n_ms__${s}_loop`] = 
-                                                                        n_hours * 1000*60*60
-                                                                        + n_minutes_mod * 1000 * 60
-                                                                        + n_seconds_mod * 1000
-                                                                        + n_ms_mod 
-                                                                    o_state[`o_js__${s}_loop`]._f_render()
+                                    innerText: 'ARTSEYIO - Keyboard Emulator'
+                                }, 
+                                {
+                                    s_tag: "p",
+                                    innerHTML: "credits for the layout idea go to <a href='https://artsey.io/'>artsey.io</a>"
+                                },
+                                Object.assign(
+                                    o_state, 
+                                    {
+                                        o_js__a_o_key: {
+                                            f_o_jsh:()=>{
+                                                return {
+                                                    class: "a_o_key",
+                                                    a_o: [
+                                                        ...o_state.a_o_key.map(
+                                                            (o_key,n_idx) =>{
+                                                                return {
+                                                                    a_o:[
+                                                                        {
+                                                                            a_o: [
+                                                                                {
+                                                                                    innerText: o_state.a_s_text[n_idx].toUpperCase(), 
+                                                                                },
+                                                                                {
+                                                                                    style: [
+                                                                                        `position:absolute`, 
+                                                                                        `left: 9px`,
+                                                                                        `top: 9px`,
+                                                                                        `font-size: 12px`
 
+                                                                                    ].join(';'),
+                                                                                    innerText: `(${o_key.s_char_key})`, 
+                                                                                },
+                                                                            ]
+                                                                        }, 
+                                                                    ],
+                                                                    class: [
+                                                                        'o_key', 
+                                                                        (o_state.a_o_event__per_key.find(o=>{
+                                                                            return o.s_char_key == o_key.s_char_key
+                                                                        })?.b_down) ? 'b_down' : false
+                                                                    ].filter(v=>v).join(' '),
+                                                                    style: `flex: 0 0 ${100/o_state.o_scl.n_x}%`
                                                                 }
-                                                            }, 
-                                                            {innerText: ":"},
-                                                            {
-                                                                s_tag: 'input', 
-                                                                type: 'number',
-                                                                value: (n_minutes_mod), 
-                                                                oninput: (o_e)=>{
-                                                                    n_minutes_mod = parseInt(o_e.target.value);
-                                                                    o_state[`n_ms__${s}_loop`] = 
-                                                                        n_hours * 1000*60*60
-                                                                        + n_minutes_mod * 1000 * 60
-                                                                        + n_seconds_mod * 1000
-                                                                        + n_ms_mod 
-                                                                    o_state[`o_js__${s}_loop`]._f_render()
-
-                                                                }
-                                                            }, 
-                                                            {innerText: ":"},
-                                                            {
-                                                                s_tag: 'input', 
-                                                                type: 'number',
-                                                                value: (n_seconds_mod), 
-                                                                oninput: (o_e)=>{
-                                                                    n_seconds_mod = parseInt(o_e.target.value);
-                                                                    o_state[`n_ms__${s}_loop`] = 
-                                                                        n_hours * 1000*60*60
-                                                                        + n_minutes_mod * 1000 * 60
-                                                                        + n_seconds_mod * 1000
-                                                                        + n_ms_mod 
-                                                                    o_state[`o_js__${s}_loop`]._f_render()
-
-                                                                }
-                                                            }, 
-                                                            {innerText: ":"},
-                                                            {
-                                                                s_tag: 'input', 
-                                                                type: 'number',
-                                                                step: 15,
-                                                                value: (n_ms_mod), 
-                                                                oninput: (o_e)=>{
-                                                                    if(o_e.target.value < 0){
-                                                                        o_e.target.value = 1000;
-                                                                    }
-                                                                    if(o_e.target.value > 1000){
-                                                                        o_e.target.value = 0;
-                                                                    }
-                                                                    n_ms_mod = parseInt(o_e.target.value);
-
-                                                                    o_state[`n_ms__${s}_loop`] = 
-                                                                        n_hours * 1000*60*60
-                                                                        + n_minutes_mod * 1000 * 60
-                                                                        + n_seconds_mod * 1000
-                                                                        + n_ms_mod 
-                                                                    o_state[`o_js__${s}_loop`]._f_render()
-
-                                                                    window.o_state.o_youtube_iframe_api_player.seekTo(
-                                                                        o_state[`n_ms__${s}_loop`]/1000.
-                                                                    );
-                                                                    window.o_state.o_youtube_iframe_api_player.pauseVideo()
-
-                                                                }
-                                                            }, 
-                                                        ]
-                                                    }
-                                                ]
+                                                            }
+                                                        )
+                                                    ]
+                                                }
                                             }
                                         }
                                     }
-                                }
-                            )[`o_js__inputs_${s}_loop`]
-                        }),
-                    ]
+                                ).o_js__a_o_key,
+                                {
+                                    innerText: "Try out the ARTSEYIO layout in the textarea below!"
+                                },
+                                Object.assign(
+                                    o_state,
+                                    {
+                                        o_js__text: {
+                                            f_o_jsh:()=>{
+                                                return {
+                                                    s_tag: 'textarea',
+                                                    innerHTML: o_state.s_text_input,
+                                                    value: o_state.s_text_input, 
+                                                    onkeydown: (o_e)=>{
+                                                        f_custom_key_press_event(o_e)
+                                                    },
+                                                    onkeyup: (o_e)=>{
+                                                        f_custom_key_press_event(o_e)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                ).o_js__text, 
 
+                            ]
+                        },  
+                        {
+                            s_tag:'img',
+                            src: './layout_diagram_combos_right_only.jpg',
+                            style: [
+                                'max-height: 100vh',
+                                'width: auto ',
+                                'height: auto ',
+                            ].join(';')
+                        }
+                        // {
+                        //     style: [
+                        //         'aspect-ratio: 1/1'
+                        //     ].join(';'),
+                        //     a_o: [
+                        //         {
+        
+                        //             // s_tag:'img',
+                        //             style: [
+                        //                 `background-image: url(./layout_diagram_combos_right_only.jpg)`,
+                        //                 // 'max-width: 100%', 
+                        //                 // 'max-height: 100%',
+                        //                 // 'object-fit: contain'
+                        //             ].join(';'),
+                        //             // src: './layout_diagram_combos_right_only.jpg'
+                        //         }
+                        //     ]
+                        // }
+                        
+                    ]
                 }
             ]
         }
     )
 );
-document.addEventListener('pointerup', ()=>{
-    o_state.b_pointer_down_start = false
-    o_state.b_pointer_down_end = false
-})
-document.addEventListener('pointermove', (o_e)=>{
-
-
-    let o_trn_nor = f_o_trn__relative_to_o_html__nor(
-        new O_vec2(o_e.clientX,o_e.clientY),
-        document.querySelector('.timeline')
-    )
-    o_state.b_pointer_over_start_end = false;
-    // console.log(o_trn_nor)
-    new Array("start", "end").forEach(s => {
-
-        if(o_e.target.closest(`.playhead.${s}`)){
-            o_state.b_pointer_over_start_end = true;
-
-            window.o_state.o_youtube_iframe_api_player.seekTo(
-                o_state[`n_ms__${s}_loop`]/1000.
-            );
-            o_state.b_yt_video_playing_last = o_state.b_yt_video_playing
-            window.o_state.o_youtube_iframe_api_player.pauseVideo()
+let f_check_and_potentially_execute_actions = function(){
+    let a_o_event_down = o_state.a_o_event__per_key.filter(
+        o=>{
+            return o.b_down
         }
-        if(o_state[`b_pointer_down_${s}`]){
-            let n_max = o_state?.o_youtube_iframe_api_player?.playerInfo?.duration
-            o_state[`n_ms__${s}_loop`] = Math.max(
-                Math.min(
-                    n_max*1000,
-                    n_max * o_trn_nor.n_x * 1000.
-                ),
-                0.
-            );
-            f_update_url_hash()
-            o_state[`o_js__${s}_loop`]._f_render()
-            window.o_state.o_youtube_iframe_api_player.seekTo(
-                o_state[`n_ms__${s}_loop`]/1000.
-            );
-            window.o_state.o_youtube_iframe_api_player.pauseVideo()
+    ).sort(
+        (o1, o2)=>{
+            return o1.n_ms_wpn - o2.n_ms_wpn
         }
-    });
-    if(
-        !o_state.b_pointer_over_start_end && o_state.b_pointer_over_start_end_last 
-    ){
-
-        window.o_state.o_youtube_iframe_api_player.seekTo(
-            o_state.n_ms__tmp / 1000.
-        );
-
-        if(o_state.b_yt_video_playing_last){
-            window.o_state.o_youtube_iframe_api_player.playVideo()
-        }else{
-            window.o_state.o_youtube_iframe_api_player.pauseVideo()
+    );
+    // console.log(
+    //     a_o_event_down.map(o=>o.s_char_key)
+    // );
+    let n_ms_delta = 0;
+    let a_o_event_down__combined = a_o_event_down.filter(
+        o=>{
+            return Math.abs(a_o_event_down[0].n_ms_wpn - o.n_ms_wpn) < o_state.n_ms_delta_to_count_as_single_key
         }
-
+    );
+    console.log(a_o_event_down__combined);
+    let a_o_key_action = o_state.a_o_key_action.filter(o=>{
+        return o.a_s_char_key.length == a_o_event_down__combined.length
+            && ! a_o_event_down__combined.find(o2=>{
+                return !o.a_s_char_key.includes(o2.s_char_key)
+            })
+    })
+    console.log(a_o_key_action)
+    for(let o_key_action of a_o_key_action){
+        let f = o_s_name_function_f_function[o_key_action.s_name_function_action];
+        f(o_key_action.a_v_arg_function_action)
     }
-    o_state.b_pointer_over_start_end_last = o_state.b_pointer_over_start_end;
+}
+let f_update_a_o_event__per_key = function(o_event){
+    let o_event_existing = o_state.a_o_event__per_key.find(o=>{
+        return o.s_char_key == o_event.s_char_key
+    });
+    if(!o_event_existing){
+        o_event_existing = o_event;
+        o_state.a_o_event__per_key.push(o_event);
+    }
+    o_state.a_o_event__per_key[o_state.a_o_event__per_key.indexOf(o_event_existing)] = o_event;
+}
+let f_fix_alt_tab_bug = function(
+    b_alt_pressed
+){
+    // on linux there is a bug 
+    // Problem: keyup event for 'alt left' is not triggered when swiching
+    // from a other application for example vscode to the chrome browser
     
-    // let n_x_nor = o_e.clientX / window.innerWidth;
-    // if(window?.o_state?.o_youtube_iframe_api_player?.playerInfo?.videoData?.video_id){
-    //     let n_max = window.o_state.o_youtube_iframe_api_player.getDuration();
-    //     window.o_state.o_youtube_iframe_api_player.seekTo(n_max * n_x_nor);
-    //     window.o_state.o_youtube_iframe_api_player.pauseVideo()
 
-    // }
-    // window.o_state.o_youtube_iframe_api_player.stopVideo() 
-})
+    // therefore we have to double check if the alt key is pressed and update the event accordingly
+    let o_event__alt = o_state.a_o_event__per_key.find(o=>o.s_char_key.toLowerCase() == 'alt')
+    if(o_event__alt){
+        o_event__alt.b_down = b_alt_pressed;
+    }
+}
+let f_custom_key_press_event = async function(o_e){
+    if(o_e.isTrusted ){ //dont catch emulated events
+        let o_event = new O_event(
+            o_e.key,
+            o_e.type == 'keydown', 
+            window.performance.now()
+        )
+        f_fix_alt_tab_bug(o_e.altKey)
+        // could be used for history, but would spam the memory 
+        // o_state.a_o_event.push(
+        //     o_event
+        // )
+        f_update_a_o_event__per_key(o_event);
+        clearTimeout(o_state.n_id_timeout);
+        o_state.n_id_timeout = window.setTimeout(
+            ()=>{
+                f_check_and_potentially_execute_actions();
+            }, 
+            o_state.n_ms_timeout_for_check_actions
+        )
+        await o_state?.o_js__a_o_key._f_render();
+        o_e.stopPropagation();
+        o_e.preventDefault();
+    }
+}
+console.log(document.querySelector('textarea'))
+document.querySelector('textarea').focus()
+document.querySelector('textarea').click()
 
+document.addEventListener('DOMContentLoaded', function() {
+    var textarea = document.querySelector('textarea');
+    if (textarea) {
+      textarea.focus();
+    }
+  });
+  
