@@ -3,7 +3,9 @@ import {
     f_o_js as f_o_js__tooltip
 } from "https://deno.land/x/f_o_html_from_o_js@2.8/localhost/jsh_modules/tooltip/mod.js"
 
-
+import {
+    f_a_v_add_v_circular_to_array
+}from "https://deno.land/x/handyhelpers@3.5/mod.js"
 
 import {
     f_display_test_selection_or_run_selected_test_and_print_summary,
@@ -22,6 +24,41 @@ import {
 } from "https://deno.land/x/vector@0.8/mod.js"
 
 
+// events
+// - the 'tap' event
+//      a key is pressed , will be down for a short time, and will be released, 
+//      this is the classical
+// - the 'hold' event 
+//      if a key is pressed and held down a different event will be triggered
+//      if there is no hold event defined, the 'tap' event will be repeated every n_milliseconds
+//      which allows the user to for example delete multiple keys quickly by holding backSpace
+// - the 'double/triple/quadruple etc.' event
+//      if a tap event occurs quickly n-times in a row 
+// - the 'secret code' event 
+//      a specific order of tap events with different distances to each other, 
+//      a classical example for this is the 'secret know' , 'ta   tata   ta  ta , ta  ta'
+// - 'groups'
+//      all of the events above can be triggered only if a group of keys is simultaniously clicked
+//      a group is considered a group if the delay between keys is in a certain limit
+//        - if the delay from last key to each previous key is smaller than the limit
+//       - if the delay of each following key to the key before is within a certain limit
+//          
+//      this introduces a exponential complexity since there are so many possible combination of all of the aboce
+// possible problems/questions, 
+// if for example a group would be hitting 'jkl;' toghether, and the tap event would be emmiting a '\r\n'(enter) key. 
+// would the event get executed if the 'jkl;' keydown's are close enough for all keys to be considered a group
+// but the in keyup event the keys get liftet with a bigger delay (example below) 
+//               0ms                                             500ms
+// keydown timeline:     jl k ;     
+// key  up timeline:               j k    l        ;
+// group limit(50ms)           
+//                       ^-30ms-^  inside a timespan of 30ms all keys were pressed, keydown occurs close enought for all keys, 
+//                                  keydowns count as a group 
+//
+//                                 ^---------^-----^ 80ms, keyups do not occur close enought to be counted as a group
+
+// for easiness, as soon as a keydown group is identified, it will be counted as a group
+// if 
 // o_variables.n_rem_font_size_base = 1. // adjust font size, other variables can also be adapted before adding the css to the dom
 // o_variables.n_rem_padding_interactive_elements = 0.5; // adjust padding for interactive elements 
 f_add_css(
@@ -87,11 +124,19 @@ class O_event{
     constructor(
         s_char_key, 
         b_down, 
-        n_ms_wpn
+        a_n_ms_wpn_down, 
+        a_n_ms_wpn_up, 
+        b_key_action_fired, 
+        b_grouped,
+        n_len_max_a_n_ms = n_len_max_a_n_ms
     ){
         this.s_char_key = s_char_key
         this.b_down = b_down
-        this.n_ms_wpn = n_ms_wpn
+        this.a_n_ms_wpn_down = a_n_ms_wpn_down; 
+        this.a_n_ms_wpn_up = a_n_ms_wpn_up
+        this.b_key_action_fired = b_key_action_fired, 
+        this.b_grouped = b_grouped
+        this.n_len_max_a_n_ms = n_len_max_a_n_ms
     }
 }
 class O_key{
@@ -112,16 +157,16 @@ class O_key_action{
         b_hold,
         n_ms_for_activation_hold,
         n_ms_delta_to_count_as_tap_combo,
-        s_name_function_action, 
-        a_v_arg_function_action
+        f_action,
+        n_ms_last_action_call
     ){
         this.a_s_char_key = a_s_char_key
         this.b_tap = b_tap 
         this.b_hold = b_hold
         this.n_ms_for_activation_hold = n_ms_for_activation_hold
         this.n_ms_delta_to_count_as_tap_combo = n_ms_delta_to_count_as_tap_combo
-        this.s_name_function_action = s_name_function_action
-        this.a_v_arg_function_action = a_v_arg_function_action
+        this.f_action = f_action
+        this.n_ms_last_action_call = n_ms_last_action_call
     }
 }
 let a_a_b_down__layout = [
@@ -143,8 +188,10 @@ let f_o_key_action_emit_from_params = function(a_n, s_char_key_to_emit){
         false,
         n_ms_for_activation_hold,
         n_ms_delta_to_count_as_tap_combo,
-        'f_emit_keydown', 
-        [s_char_key_to_emit]
+        (b_down)=>{
+            f_emit_keydown(b_down,s_char_key_to_emit)
+        }, 
+        0
     )
     f_a_s_char_key__from_a_n
 }
@@ -158,53 +205,58 @@ let f_a_s_char_key__from_a_n = function(a_n){
         }
     ).filter(v=>v)
 }
-let o_s_name_function_f_function = {
-    f_emit_keydown : function(s_char_key){
-        console.log(s_char_key)
+let f_emit_keydown = function(b_down, s_char_key){
 
-        // var event = new KeyboardEvent('keydown', {
-        //     key: s_char_key,
-        //     // keyCode: keyCode,
-        //     bubbles: true,
-        //     cancelable: true
-        // });
-        // document.dispatchEvent(event);
-        // custom events will have o.isTrusted == false, and will not reflect in inputs such as textareas and inputs...
-        // therefore we have to render by our own
-        
-        console.log(s_char_key)
-        let n_length_max = 100;
+    // var event = new KeyboardEvent('keydown', {
+    //     key: s_char_key,
+    //     // keyCode: keyCode,
+    //     bubbles: true,
+    //     cancelable: true
+    // });
+    // document.dispatchEvent(event);
+    // custom events will have o.isTrusted == false, and will not reflect in inputs such as textareas and inputs...
+    // therefore we have to render by our own
+    
+    let n_length_max = 100;
 
-        if(s_char_key == '<backSpace>'){
-            o_state.s_text_input = o_state.s_text_input.slice(0,-1)
-            o_state?.o_js__text._f_update()
-            return
-        }
-        o_state.s_text_input = [
-            ...Array.from(
-                o_state.s_text_input
-            ),
-            s_char_key
-        ].slice(-n_length_max).join('')
+    if(s_char_key == '<backSpace>'){
+        o_state.s_text_input = o_state.s_text_input.slice(0,-1)
         o_state?.o_js__text._f_update()
+        return
     }
+    o_state.s_text_input = [
+        ...Array.from(
+            o_state.s_text_input
+        ),
+        s_char_key
+    ].slice(-n_length_max).join('')
+    o_state?.o_js__text._f_update()
 }
 let n_ms_for_activation_hold = 300;
 let n_ms_delta_to_count_as_tap_combo = 60;
-let o_state = {
-    s_text_input: '',
-    n_ms_timeout_for_check_actions: 50, 
-    n_id_timeout: 0,
-    a_o_key_action: [
+let a_a_o_key_action = [ // aka layers
+    [
         ...a_s_text.map((s,n_idx)=>{
+
+            let f = (b_down)=>{f_emit_keydown(b_down,s)};
+            if(s == 'a'){
+                f = (b_down)=>{
+                    if(b_down){
+                        o_state.a_o_key_action = o_state.a_a_o_key_action[1]
+                    }else{
+                        o_state.a_o_key_action = o_state.a_a_o_key_action[0]
+                    }
+                    //layer switch
+                }
+            }
             return new O_key_action(
                 a_s_char_key[n_idx],
                 true,
                 false,
                 n_ms_for_activation_hold,
                 n_ms_delta_to_count_as_tap_combo,
-                'f_emit_keydown', 
-                [a_s_text[n_idx]]
+                f, 
+                0
             )
         }),
         ...[
@@ -462,11 +514,55 @@ let o_state = {
             ],
         ].map(a_v=>{return f_o_key_action_emit_from_params(...a_v)})
     ],
+
+    [
+        ...a_s_text.map((s,n_idx)=>{
+            return new O_key_action(
+                a_s_char_key[n_idx],
+                true,
+                false,
+                n_ms_for_activation_hold,
+                n_ms_delta_to_count_as_tap_combo,
+                (b_down)=>{
+                    f_emit_keydown(b_down,s)
+                },
+                0
+            )
+        }),
+        ...[
+            '', '(', '{', '}',
+            '', '[', ']', '}'
+        ].map((s,n_idx)=>{
+            if(s.trim() == ''){
+                return false
+            }
+            return new O_key_action(
+                a_s_char_key[n_idx],
+                true,
+                false,
+                n_ms_for_activation_hold,
+                n_ms_delta_to_count_as_tap_combo,
+                (b_down)=>{
+                    f_emit_keydown(b_down,s)
+                },
+                0
+            )
+        }).filter(v=>v),
+    ],
+];
+let o_state = {
+    n_ms_max_keyaction_repeat_start: 200,
+    n_ms_max_keyaction_repeat: 30,
+    s_text_input: '',
+    n_ms_timeout_for_check_actions: 50, 
+    n_id_timeout: 0,
+    a_a_o_key_action: a_a_o_key_action, 
+    a_o_key_action: a_a_o_key_action[0],
     o_scl: o_scl,
     a_s_text: a_s_text,
     n_ms_delta_to_count_as_single_key: 60,
     a_o_event: [], 
-    a_o_event__per_key: [],
+    a_o_event: [],
     a_o_key: new Array(o_scl.compsmul()).fill(0).map(
         (n, n_idx)=>{
             return new O_key(
@@ -533,7 +629,7 @@ document.body.appendChild(
                                                                     ],
                                                                     class: [
                                                                         'o_key', 
-                                                                        (o_state.a_o_event__per_key.find(o=>{
+                                                                        (o_state.a_o_event.find(o=>{
                                                                             return o.s_char_key == o_key.s_char_key
                                                                         })?.b_down) ? 'b_down' : false
                                                                     ].filter(v=>v).join(' '),
@@ -608,47 +704,81 @@ document.body.appendChild(
     )
 );
 let f_check_and_potentially_execute_actions = function(){
-    let a_o_event_down = o_state.a_o_event__per_key.filter(
+    let a_o_event_down = o_state.a_o_event.filter(
         o=>{
             return o.b_down
         }
     ).sort(
         (o1, o2)=>{
-            return o1.n_ms_wpn - o2.n_ms_wpn
+            return o2.n_ms_wpn_down - o1.n_ms_wpn_down
         }
     );
-    // console.log(
-    //     a_o_event_down.map(o=>o.s_char_key)
-    // );
-    let n_ms_delta = 0;
-    let a_o_event_down__combined = a_o_event_down.filter(
+
+
+    // if a key or a key group is pressed and released quickly it has to emit the 'tap' event
+    o_state.a_o_event.filter(
         o=>{
-            return Math.abs(a_o_event_down[0].n_ms_wpn - o.n_ms_wpn) < o_state.n_ms_delta_to_count_as_single_key
+            return !o.b_down && o.b_down_last
         }
-    );
-    console.log(a_o_event_down__combined);
-    let a_o_key_action = o_state.a_o_key_action.filter(o=>{
-        return o.a_s_char_key.length == a_o_event_down__combined.length
-            && ! a_o_event_down__combined.find(o2=>{
-                return !o.a_s_char_key.includes(o2.s_char_key)
-            })
+    ).forEach(o=>{
+        console.log('here')
+        let o_key_action = o_state.a_o_key_action.find(
+            o2=>{
+                return o2.a_s_char_key.length == 1 && o2.a_s_char_key.includes(o.s_char_key)
+            }
+        );
+        if(o_key_action){
+            o_key_action.f_action(false)
+            o.b_down_last = o.b_down
+        }
     })
-    console.log(a_o_key_action)
-    for(let o_key_action of a_o_key_action){
-        let f = o_s_name_function_f_function[o_key_action.s_name_function_action];
-        f(o_key_action.a_v_arg_function_action)
+
+    // we now group the down events 
+    // two grouped keypressed could be done with a certain 
+    // margin to each other for example 
+    // AR(f)....... TS(J).....
+    let a_a_o_event_down = []
+    if(a_o_event_down.length > 0){
+
+        a_a_o_event_down = [
+            [a_o_event_down[0]]
+        ];
+        for(let o of a_o_event_down.slice(1)){
+            let b_connected = 
+                Math.abs(a_a_o_event_down.at(-1)[0].n_ms_wpn_down - o.n_ms_wpn_down) < o_state.n_ms_delta_to_count_as_single_key
+            if(b_connected){
+                a_a_o_event_down.at(-1).push(o)
+            }else{
+                a_a_o_event_down.push(
+                    [o]
+                )
+            }
+        }
     }
-}
-let f_update_a_o_event__per_key = function(o_event){
-    let o_event_existing = o_state.a_o_event__per_key.find(o=>{
-        return o.s_char_key == o_event.s_char_key
-    });
-    if(!o_event_existing){
-        o_event_existing = o_event;
-        o_state.a_o_event__per_key.push(o_event);
+    console.log(a_a_o_event_down)
+
+    for(let a_o_event_down of a_a_o_event_down){
+
+        let a_o_key_action = o_state.a_o_key_action.filter(o=>{
+            return o.a_s_char_key.length == a_o_event_down.length
+                && ! a_o_event_down.find(o2=>{
+                    return !o.a_s_char_key.includes(o2.s_char_key)
+                })
+        });
+
+        let n_ms_wpn = window.performance.now()
+        for(let o_key_action of a_o_key_action){
+            if(Math.abs(n_ms_wpn - o_key_action.n_ms_last_action_call) > 200){
+                o_key_action.f_action(true);
+                o_key_action.n_ms_last_action_call = n_wpn;
+            }
+        }
     }
-    o_state.a_o_event__per_key[o_state.a_o_event__per_key.indexOf(o_event_existing)] = o_event;
+
+
+
 }
+
 let f_fix_alt_tab_bug = function(
     b_alt_pressed
 ){
@@ -658,39 +788,77 @@ let f_fix_alt_tab_bug = function(
     
 
     // therefore we have to double check if the alt key is pressed and update the event accordingly
-    let o_event__alt = o_state.a_o_event__per_key.find(o=>o.s_char_key.toLowerCase() == 'alt')
+    let o_event__alt = o_state.a_o_event.find(o=>o.s_char_key.toLowerCase() == 'alt')
     if(o_event__alt){
         o_event__alt.b_down = b_alt_pressed;
     }
 }
 let f_custom_key_press_event = async function(o_e){
     if(o_e.isTrusted ){ //dont catch emulated events
+        let b_down = o_e.type == 'keydown'
         let o_event = new O_event(
             o_e.key,
-            o_e.type == 'keydown', 
-            window.performance.now()
+            b_down,
+            [],
+            [], 
+            false,
+            false, 
+            10
         )
         f_fix_alt_tab_bug(o_e.altKey)
-        // could be used for history, but would spam the memory 
-        // o_state.a_o_event.push(
-        //     o_event
-        // )
-        f_update_a_o_event__per_key(o_event);
-        clearTimeout(o_state.n_id_timeout);
-        o_state.n_id_timeout = window.setTimeout(
-            ()=>{
-                f_check_and_potentially_execute_actions();
-            }, 
-            o_state.n_ms_timeout_for_check_actions
+
+        let o_event_existing = o_state.a_o_event.find(o=>{
+            return o.s_char_key == o_event.s_char_key
+        });
+        // by default the down event is emitted several times if a key is held down, but we handle this in our custom raf 
+        if(o_event_existing?.b_down && b_down){
+            o_e.stopPropagation();
+            o_e.preventDefault();
+            return;
+        }
+        if(!o_event_existing){
+            o_state.a_o_event.push(o_event);
+            o_event_existing = o_event
+        }
+        if(b_down){
+            o_event_existing.b_grouped = false
+        }
+        o_event_existing.b_down = b_down
+        o_event_existing.b_key_action_fired = b_down
+        let b_circular_insert_at_beginning = true;
+        f_a_v_add_v_circular_to_array(
+            o_event_existing[(b_down) ? 'a_n_ms_wpn_down' : 'a_n_ms_wpn_up'],
+            window.performance.now(),
+            o_event.n_len_max_a_n_ms,
+            b_circular_insert_at_beginning
         )
+        // clearTimeout(o_state.n_id_timeout);
+        // o_state.n_id_timeout = window.setTimeout(
+        //     ()=>{
+        //         f_check_and_potentially_execute_actions();
+        //     }, 
+        //     o_state.n_ms_timeout_for_check_actions
+        // )
         await o_state?.o_js__a_o_key._f_render();
         o_e.stopPropagation();
         o_e.preventDefault();
     }
 }
-console.log(document.querySelector('textarea'))
-document.querySelector('textarea').focus()
-document.querySelector('textarea').click()
+let n_id_raf = 0; 
+let n_ms_max = 1000/120; //30 fps
+let n_wpn = 0;
+let n_wpn_last = 0;
+let f_raf = function(){
+    n_id_raf = window.requestAnimationFrame(f_raf)
+    n_wpn = window.performance.now();
+    if(Math.abs(n_wpn-n_wpn_last)> n_ms_max){
+        n_wpn_last = n_wpn;
+        f_check_and_potentially_execute_actions();
+    }
+    // check what keys are down, 
+    // check if there are some groups 
+}
+n_id_raf = window.requestAnimationFrame(f_raf)
 
 document.addEventListener('DOMContentLoaded', function() {
     var textarea = document.querySelector('textarea');
